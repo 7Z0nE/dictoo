@@ -165,10 +165,10 @@ class DictyDict(Dicty, dict):
 		delim = CONFIG["delim"]
 		for key, value in self.items():
 			if isinstance(value, Dicty):
-				for k, v in value.flattened(prefix=prefix+delim+key).items():
+				for k, v in value.flattened(prefix=prefix + key + delim).items():
 					base[k] = v
 			else:
-				base[prefix+(delim if delim != "" else "")+key] = value
+				base[prefix + key] = value
 		return base
 
 	def to_dict(self) -> dict:
