@@ -29,7 +29,7 @@ class Dicty:
 		elif isinstance(data, List):
 			d = DictyList.__new__(DictyList, data, **kwargs)
 		else:
-			raise ValueError("unsupported constructor argument {}".format(arg))
+			raise ValueError("unsupported constructor argument {}".format(data))
 		
 		object.__setattr__(d, '__parent', parent)
 		object.__setattr__(d, '__key', key)
@@ -71,8 +71,7 @@ class Dicty:
 			rets = fn(self[ks[0]], ks[1], *args, **kwargs)
 			return True, rets
 		else:
-			return False, None
-	
+			return False, None	
 
 	### CREATION
 	@staticmethod
@@ -83,7 +82,7 @@ class Dicty:
 	@staticmethod
 	def from_yaml(path: str):
 		with open(path, "r") as f:
-			return Dicty(yaml.load(f))
+			return Dicty(yaml.load(f, Loader=yaml.FullLoader))
 
 	@staticmethod
 	def from_file(path: str):
@@ -117,6 +116,25 @@ class DictyDict(Dicty, dict):
 		for k, v in data.items():
 			self[k] = v
 
+		# if the data mapping contained complex keys with list index syntax [0], [1], etc., we need to parse them and create lists
+		# self._parse_indexes_to_lists()
+
+	# def _parse_indexes_to_lists(self):
+	# 	lists: Mapping[str, List[Tuple[indexes, value]]] = {} # maps the key inder which a list exists to the list of values
+	# 	for k, v in self.items():
+	# 		parts = k.split("[")
+	# 		if len(parts) == 1:
+	# 			# no indexes
+	# 			continue
+	# 		else:
+	# 			key = parts[0]
+	# 			# strip away the trailing ]
+	# 			indexes = [int(part[:-1]) for part in parts[1:]]
+	# 			if key not in lists:
+	# 				lists[key] = []
+	# 			lists[key].append((indexes, v))
+		
+
 	def __setattr__(self, k, v):
 		self.__setitem__(k, v)
 
@@ -136,11 +154,12 @@ class DictyDict(Dicty, dict):
 	def __setitem__(self, k: Union[Tuple, Any], v) -> None:
 		if self._recurse_key(DictyDict.__setitem__, k, v)[0]:
 			return
-
+		
 		v = self._check_value(v)
-
 		dict.__setitem__(self, k, v)
 
+		# if this is a nested __setitem__ call self might have been created by __missing__.
+		# in this case it has to be attached to the parent
 		try:
 			p = object.__getattribute__(self, '__parent')
 			k = object.__getattribute__(self, '__key')
@@ -148,7 +167,8 @@ class DictyDict(Dicty, dict):
 			p = None
 			k = None
 		
-		if p and k:
+		if p is not None and k is not None:
+			# this setitem will trigger an upwards recursion setting every intermediately created dicty on its parent until the root
 			p[k] = self
 			object.__delattr__(self, '__parent')
 			object.__delattr__(self, '__key')
@@ -164,8 +184,11 @@ class DictyDict(Dicty, dict):
 		base = {}
 		delim = CONFIG["delim"]
 		for key, value in self.items():
-			if isinstance(value, Dicty):
+			if isinstance(value, DictyDict):
 				for k, v in value.flattened(prefix=prefix + key + delim).items():
+					base[k] = v
+			elif isinstance(value, DictyList):
+				for k, v in value.flattened(prefix=prefix + key).items():
 					base[k] = v
 			else:
 				base[prefix + key] = value
@@ -280,12 +303,15 @@ class DictyList(Dicty, list):
 		base = {}
 		delim = CONFIG["delim"]
 		for idx, value in enumerate(self):
-			new_key = prefix+'['+str(idx)+']'
-			if isinstance(value, Dicty):
-				for k, v in value.flattened(prefix=new_key).items():
-					base[k] = value
+			key = '['+str(idx)+']'
+			if isinstance(value, DictyDict):
+				for k, v in value.flattened(prefix=prefix + key + delim).items():
+					base[k] = v
+			elif isinstance(value, DictyList):
+				for k, v in value.flattened(prefix=prefix + key).items():
+					base[k] = v
 			else:
-				base[new_key] = value
+				base[prefix + key] = value
 		return base
 
 	def to_list(self) -> list:
