@@ -1,5 +1,5 @@
 from .dicty import Dicty, DictyDict, DictyList
-from typing import Callable, Any, List, Dict
+from typing import Callable, Any, List, Dict, Union
 
 def apply(op: Callable, *op_args: Dicty, **op_kwargs: Any) -> Dicty:
 	"""Apply an n-ary operation to n dicts.
@@ -28,7 +28,7 @@ def apply(op: Callable, *op_args: Dicty, **op_kwargs: Any) -> Dicty:
 	
 	return res
 
-def foreach(op: Callable[[any, List[int | str]], None], dicty: any, key: List[int | str] = []) -> Dicty:
+def foreach(op: Callable[[any, List[Union[int,str]]], None], dicty: any, key: List[Union[int, str]] = []) -> Dicty:
 	"""Iterate over the leaf values and optionally keys of a dicty.
 
 	Args:

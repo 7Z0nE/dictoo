@@ -8,7 +8,7 @@ install_requires = []
 tests_require = ['pytest']
 
 setup(name='dictoo',
-    version='1.0',
+    version='1.2',
     description='Utilities for working with json-style datastructures.',
     author='Frederik Wegner',
     author_email='onlyknoppas@gmail.com',
