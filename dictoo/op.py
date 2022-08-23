@@ -1,7 +1,7 @@
 from .dicty import Dicty, DictyDict, DictyList
 from typing import Callable, Any, List, Dict, Union
 
-def apply(op: Callable, *op_args: Dicty, **op_kwargs: Any) -> Dicty:
+def apply(op: Callable, *op_args: Dicty, _dictoo_apply_is_leaf_rule: Union[Callable[[Any], bool], None] = None, _dictoo_apply_nested_key: List[str] = [], **op_kwargs: Any) -> Dicty:
 	"""Apply an n-ary operation to n dicts.
 
 	The Dictys need to either provide defaults or have a matching structure.
@@ -11,20 +11,36 @@ def apply(op: Callable, *op_args: Dicty, **op_kwargs: Any) -> Dicty:
 		op (Callable): the callable that works under 
 	Retrusn: 
 	"""
-	if isinstance(op_args[0], DictyList):
+	if _dictoo_apply_is_leaf_rule and _dictoo_apply_is_leaf_rule(op_args[0]):
+		res = op(*op_args, **op_kwargs)
+	
+	elif isinstance(op_args[0], DictyList):
 		res = DictyList([])
 		lens = [len(x) for x in op_args]
 		assert min(lens) == max(lens) # assert all equal length
 		for i in range(len(op_args[0])):
-			res.append(apply(op, *[op_arg[i] for op_arg in op_args], **op_kwargs))
+			res.append(apply(
+				op,
+				*[op_arg[i] for op_arg in op_args],
+				_dictoo_apply_is_leaf_rule=_dictoo_apply_is_leaf_rule, _dictoo_apply_nested_key=_dictoo_apply_nested_key + [str(i)],
+				**op_kwargs
+			))
 
 	elif isinstance(op_args[0], DictyDict):
 		res = DictyDict({})
 		for k in op_args[0]:
-			res[k] = (apply(op, *[op_arg[k] for op_arg in op_args], **op_kwargs))
+			res[k] = apply(
+				op,
+				*[op_arg[k] for op_arg in op_args],
+				_dictoo_apply_is_leaf_rule=_dictoo_apply_is_leaf_rule, _dictoo_apply_nested_key=_dictoo_apply_nested_key + [k],
+				**op_kwargs
+			)
 
-	else:  # leaf case
+	elif _dictoo_apply_is_leaf_rule is None:  # leaf case
 		res = op(*op_args, **op_kwargs)
+	
+	else: #not a leaf according to is_leaf_rule but also not a nested Dicty
+		raise RuntimeError("not a leaf according to is_leaf_rule but also not a nested Dicty")
 	
 	return res
 
@@ -78,7 +94,7 @@ def reduce(op, values: List, **op_kwargs):
 	return res
 	
 
-def slice(d, s: slice):
+def slice(d, s: slice, _dictoo_apply_is_leaf_rule: Union[Callable[[Any], bool], None] = None):
 	try:
 		type = object.__getattribute__(d, '__type')
 	except Exception:
@@ -86,18 +102,26 @@ def slice(d, s: slice):
 	if isinstance(d, DictyList):
 		base = Dicty([], __type=type)
 		for value in d:
-			if isinstance(value, Dicty):
-				base.append(slice(value, s))
-			else:
+			if _dictoo_apply_is_leaf_rule and _dictoo_apply_is_leaf_rule(value):
 				base.append(value[s])
+			elif isinstance(value, Dicty):
+				base.append(slice(value, s))
+			elif _dictoo_apply_is_leaf_rule is None:
+				base.append(value[s])
+			else:
+				raise RuntimeError()
 		return base
 	elif isinstance(d, DictyDict):
 		base = Dicty({}, __type=type)
 		for key, value in d.items():
-			if isinstance(value, DictyDict) or isinstance(value, DictyList):
-				base[key] = slice(value, s)
-			else:
+			if _dictoo_apply_is_leaf_rule and _dictoo_apply_is_leaf_rule(value):
 				base[key] = value[s]
+			elif isinstance(value, DictyDict) or isinstance(value, DictyList):
+				base[key] = slice(value, s)
+			elif _dictoo_apply_is_leaf_rule is None:
+				base[key] = value[s]
+			else:
+				raise RuntimeError()
 	else:
 		raise ValueError()
 
