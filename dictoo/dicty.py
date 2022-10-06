@@ -1,6 +1,8 @@
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Sequence, SupportsIndex, Tuple, Type, Union
 import json, yaml
+import warnings
 import os
 
 CONFIG = {
@@ -63,7 +65,10 @@ class Dicty:
 		if isinstance(k, str):
 			ks = k.split(CONFIG["delim"], 1)
 		elif isinstance(k, tuple):
-			ks = k[0], k[1:]
+			if len(k) == 0:
+				raise ValueError('Cannot recurse with empty key')
+			x, y = k[0], k[1:]
+			ks = (x,) if y == () else (x, y)
 		else:
 			return False, None
 
@@ -75,20 +80,27 @@ class Dicty:
 
 	### CREATION
 	@staticmethod
-	def from_json(path: str):
+	def from_json(path: str | Path):
+		if Path(path).stat().st_size == 0:
+			return Dicty({})
 		with open(path, "r") as f:
 			return Dicty(json.load(f))
 
 	@staticmethod
-	def from_yaml(path: str):
+	def from_yaml(path: str | Path):
+		if Path(path).stat().st_size == 0:
+			return Dicty({})
 		with open(path, "r") as f:
 			return Dicty(yaml.load(f, Loader=yaml.FullLoader))
 
 	@staticmethod
-	def from_file(path: str):
-		if path.endswith(".json"):
+	def from_file(path: str | Path):
+		path = Path(path)
+		if path.stat().st_size == 0:
+			return Dicty({})
+		if path.name.endswith(".json"):
 			return Dicty.from_json(path)
-		elif path.endswith(".yaml"):
+		elif path.name.endswith(".yaml"):
 			return Dicty.from_yaml(path)
 		else:
 			raise ValueError("Can only load from json or yaml")
@@ -154,6 +166,9 @@ class DictyDict(Dicty, dict):
 	def __setitem__(self, k: Union[Tuple, Any], v) -> None:
 		if self._recurse_key(DictyDict.__setitem__, k, v)[0]:
 			return
+		
+		if isinstance(k, tuple) and len(k) == 1:
+			k = k[0]
 		
 		v = self._check_value(v)
 		dict.__setitem__(self, k, v)

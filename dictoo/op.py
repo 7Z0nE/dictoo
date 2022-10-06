@@ -12,7 +12,7 @@ def apply(op: Callable, *op_args: Dicty, _dictoo_apply_is_leaf_rule: Union[Calla
 	Retrusn: 
 	"""
 	if _dictoo_apply_is_leaf_rule and _dictoo_apply_is_leaf_rule(op_args[0]):
-		res = op(*op_args, **op_kwargs)
+		res = op(*op_args, _dictoo_key=_dictoo_apply_nested_key, **op_kwargs)
 	
 	elif isinstance(op_args[0], DictyList):
 		res = DictyList([])
@@ -37,34 +37,31 @@ def apply(op: Callable, *op_args: Dicty, _dictoo_apply_is_leaf_rule: Union[Calla
 			)
 
 	elif _dictoo_apply_is_leaf_rule is None:  # leaf case
-		res = op(*op_args, **op_kwargs)
+		res = op(*op_args, _dictoo_key=_dictoo_apply_nested_key, **op_kwargs)
 	
 	else: #not a leaf according to is_leaf_rule but also not a nested Dicty
 		raise RuntimeError("not a leaf according to is_leaf_rule but also not a nested Dicty")
 	
 	return res
 
-def foreach(op: Callable[[any, List[Union[int,str]]], None], dicty: any, key: List[Union[int, str]] = []) -> Dicty:
+def foreach(op: Callable[[any, List[Union[int,str]]], None], data: any, key: List[Union[int, str]] = []) -> None:
 	"""Iterate over the leaf values and optionally keys of a dicty.
 
 	Args:
 		op (Callable): the callable that works under 
 	Retrusn: 
 	"""
-	if isinstance(dicty, DictyList):
-		res = DictyList([])
-		for i in range(len(dicty)):
-			res.append(foreach(op, dicty[i], key + [i]))
+	if isinstance(data, DictyList):
+		for i in range(len(data)):
+			foreach(op, data[i], key + [i])
 
-	elif isinstance(dicty, DictyDict):
-		res = DictyDict({})
-		for k in dicty:
-			res[k] = (foreach(op, dicyt[k], key + [k]))
+	elif isinstance(data, DictyDict):
+		for k in data:
+			foreach(op, data[k], key + [k])
 
 	else:  # leaf case
-		res = op(dicty, key)
-	
-	return res
+		op(data, tuple(key))
+
 
 def reduce(op, values: List, **op_kwargs):
 	"""Reduce an array of dictys with a reduction operator.
