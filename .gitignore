@@ -1,5 +1,6 @@
 refs
 docs
+dictoo.egg-info
 dicty.egg-info
 .vscode
 .hypothesis
@@ -7,3 +8,4 @@ __pycache__
 **/*.pyc
 artifacts
 .pytest_cache
+build

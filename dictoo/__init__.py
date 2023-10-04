@@ -1,2 +1,2 @@
-from .dicty import Dicty
+from .dictoo import Dictoo
 from .op import *

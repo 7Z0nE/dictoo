@@ -3,7 +3,7 @@ from typing import Dict
 import dictoo as dt
 import json, yaml, os, sys
 
-from dictoo.dicty import DictyDict
+from dictoo.dictoo import DictooDict
 
 # try:
 # 	torch = __import__('torch')
@@ -16,12 +16,12 @@ from dictoo.dicty import DictyDict
 
 
 @pytest.fixture
-def empty_dictydict():
-	return dt.Dicty({})
+def empty_dictoodict():
+	return dt.Dictoo({})
 
 @pytest.fixture
-def empty_dictylist():
-	return dt.Dicty([])
+def empty_dictoolist():
+	return dt.Dictoo([])
 
 @pytest.fixture
 def simple_nested_dict():
@@ -65,17 +65,17 @@ def nested_dict_same_key():
 
 
 def test_constructor_and_to_plain(simple_dict, list_of_dicts, dict_with_list_of_dicts, list_of_different_dicts):
-	assert simple_dict == dt.Dicty(simple_dict).to_plain()
-	assert list_of_dicts == dt.Dicty(list_of_dicts).to_plain()
-	assert dict_with_list_of_dicts == dt.Dicty(dict_with_list_of_dicts).to_plain()
-	assert list_of_different_dicts == dt.Dicty(list_of_different_dicts).to_plain()
+	assert simple_dict == dt.Dictoo(simple_dict).to_plain()
+	assert list_of_dicts == dt.Dictoo(list_of_dicts).to_plain()
+	assert dict_with_list_of_dicts == dt.Dictoo(dict_with_list_of_dicts).to_plain()
+	assert list_of_different_dicts == dt.Dictoo(list_of_different_dicts).to_plain()
 
 def test_construct_from_json(simple_nested_dict, tmpdir):
 	file = os.path.join(tmpdir, "test.json")
 	with open(file, "w+") as f:
 		json.dump(simple_nested_dict, f)
 
-	d = dt.Dicty.from_file(file)
+	d = dt.Dictoo.from_file(file)
 
 	assert d.to_dict() == simple_nested_dict
 
@@ -85,18 +85,18 @@ def test_construct_from_yaml(simple_nested_dict, tmpdir):
 	with open(file, "w+") as f:
 		yaml.dump(simple_nested_dict, f)
 
-	d = dt.Dicty.from_file(file)
+	d = dt.Dictoo.from_file(file)
 
 	assert d.to_dict() == simple_nested_dict
 
 def test_get_nested(simple_nested_dict):
-	d = dt.Dicty(simple_nested_dict)
+	d = dt.Dictoo(simple_nested_dict)
 	assert simple_nested_dict["b"]["c"] == d["b"]["c"]
 	assert simple_nested_dict["b"]["c"] == d.b.c
 	assert simple_nested_dict["b"]["c"] == d["b.c"]
 
 def test_set_new_key_nested(simple_nested_dict):
-	d = dt.Dicty(simple_nested_dict)
+	d = dt.Dictoo(simple_nested_dict)
 	d["g"] = 1
 	d["b"]["d"] = 2
 	d["h.j"] = 3
@@ -104,7 +104,7 @@ def test_set_new_key_nested(simple_nested_dict):
 	assert d["b"]["d"] == 2
 	assert d["h.j"] == 3
 
-	d = dt.Dicty(simple_nested_dict)
+	d = dt.Dictoo(simple_nested_dict)
 	d.g = 1
 	d.b.d = 2
 	d.h.j = 3
@@ -114,7 +114,7 @@ def test_set_new_key_nested(simple_nested_dict):
 	assert d.h.j == 3
 
 def test_constructor_copies(simple_nested_dict):
-	d = dt.Dicty(simple_nested_dict)
+	d = dt.Dictoo(simple_nested_dict)
 	d.a += 1
 	d.b.c += 1
 
@@ -122,94 +122,98 @@ def test_constructor_copies(simple_nested_dict):
 	assert d.b.c == simple_nested_dict["b"]["c"] + 1
 
 def test_typed_dict(simple_nested_dict):
-	d = dt.Dicty(simple_nested_dict, __type=int)
+	d = dt.Dictoo(simple_nested_dict, __type=int)
 	d.d = 8
 	with pytest.raises(TypeError) as e:
 		d.e = "u"
 
 def test_append(list_of_dicts):
-	d = dt.Dicty(list_of_dicts)
-	items = [[0], {'a': 1}, dt.Dicty({'b': 1}), []]
+	d = dt.Dictoo(list_of_dicts)
+	items = [[0], {'a': 1}, dt.Dictoo({'b': 1}), []]
 	for i in items:
 		d.append(i)
-	d[-1].append(dt.Dicty({'a': 1}))
+	d[-1].append(dt.Dictoo({'a': 1}))
 
 def test_batched_getitem(list_of_dicts, list_of_list_of_dicts):
-	d = dt.Dicty(list_of_dicts)
-	assert d['a'] == dt.Dicty([dd['a'] for dd in d])
-	d = dt.Dicty(list_of_list_of_dicts)
-	assert d['a'] == dt.Dicty([ddd['a'] for dd in d for ddd in dd])
+	d = dt.Dictoo(list_of_dicts)
+	assert d['a'] == dt.Dictoo([dd['a'] for dd in d])
+	d = dt.Dictoo(list_of_list_of_dicts)
+	assert d['a'] == dt.Dictoo([[ddd['a'] for ddd in dd] for dd in d])
 
 def test_batched_setitem(list_of_dicts, list_of_list_of_dicts):
-	d = dt.Dicty(list_of_dicts)
+	d = dt.Dictoo(list_of_dicts)
 	d['a'] = 10
 	assert sum(d['a']) == 10*len(d)
 	d[:2]['a'] = 1
 	assert sum(d['a']) == 2 * 1 + (len(d)-2) * 10
-	d = dt.Dicty(list_of_list_of_dicts)
+	d = dt.Dictoo(list_of_list_of_dicts)
 	d['a'] = 10
-	assert sum(d['a']) == 10*len(d)*len(d[0])
+	assert sum(d['a'].flattened().values()) == 10*len(d)*len(d[0])
 
-def test_leafs(empty_dictydict, empty_dictylist):
-	d = dt.Dicty({'a': 1, 'b': 2, 'c':{'d': 3, 'e': [4,5], 'f': 6}})
+def test_leafs(empty_dictoodict, empty_dictoolist):
+	d = dt.Dictoo({'a': 1, 'b': 2, 'c':{'d': 3, 'e': [4,5], 'f': 6}})
 	assert [1,2,3,4,5,6] == d.leafs()
-	assert [] == empty_dictydict.leafs()
-	assert [] == empty_dictydict.leafs()
+	assert [] == empty_dictoodict.leafs()
+	assert [] == empty_dictoodict.leafs()
 
 def test_apply():
-	d = dt.Dicty({'str': 'h', 'int':5, 'float': 0.5})
-	d_types = dt.Dicty({'str': str, 'int': int, 'float': float})
+	d = dt.Dictoo({'str': 'h', 'int':5, 'float': 0.5})
+	d_types = dt.Dictoo({'str': str, 'int': int, 'float': float})
 	res = dt.apply(isinstance, d, d_types)
-	assert res == dt.Dicty({'str': True, 'int': True, 'float': True})
+	assert res == dt.Dictoo({'str': True, 'int': True, 'float': True})
 
 def test_reduce(simple_dict):
-	reduced = dt.reduce(sum, [dt.Dicty(simple_dict), dt.Dicty(simple_dict), dt.Dicty(simple_dict)])
-	calculated = dt.apply(lambda x: x*3, dt.Dicty(simple_dict))
+	reduced = dt.reduce(sum, [dt.Dictoo(simple_dict), dt.Dictoo(simple_dict), dt.Dictoo(simple_dict)])
+	calculated = dt.apply(lambda x: x*3, dt.Dictoo(simple_dict))
 	assert reduced == calculated
 
 def test_foreach(simple_nested_dict):
-    d = dt.Dicty(simple_nested_dict)
-    flat_items = list(d.flattened().items())
-    def fn(v, k):
-        flat_items.remove([k, v])
-    assert len(flat_items) == 0 
+    d = dt.Dictoo(simple_nested_dict)
+    acc = set()
+    def fn(x, k):
+        acc.add((x, ".".join(k)))
+    dt.foreach(fn, d)
+    assert acc == set([(1, 'a'), (5, 'b.c')])
 
 def test_reduce(simple_dict):
-	reduced = dt.reduce(sum, [dt.Dicty(simple_dict), dt.Dicty(simple_dict), dt.Dicty(simple_dict)])
-	calculated = dt.apply(lambda x: x*3, dt.Dicty(simple_dict))
+	reduced = dt.reduce(sum, [dt.Dictoo(simple_dict), dt.Dictoo(simple_dict), dt.Dictoo(simple_dict)])
+	calculated = dt.apply(lambda x: x*3, dt.Dictoo(simple_dict))
 	assert reduced == calculated
 
 def test_search(simple_nested_dict, list_of_different_dicts, nested_dict_same_key):
-	d = dt.Dicty(simple_nested_dict)
+	d = dt.Dictoo(simple_nested_dict)
 	assert d.search('c') == 5
-	d = dt.Dicty(list_of_different_dicts)
+	d = dt.Dictoo(list_of_different_dicts)
 	assert d.search('a') == 1
 	assert d.search('c') == 4
-	d = dt.Dicty(nested_dict_same_key)
+	d = dt.Dictoo(nested_dict_same_key)
 	assert d.search('a') == 3
 	with pytest.raises(KeyError):
 		d.search('u')
 
 def test_flatten(simple_nested_dict, list_of_different_dicts, dict_with_list_of_dicts):
-	d = dt.Dicty(simple_nested_dict)
+	d = dt.Dictoo(simple_nested_dict)
 	d_flat = d.flattened()
 	assert d_flat['b.c'] == d['b']['c']
 	assert d_flat['a'] == d['a']
 	
-	d = dt.Dicty(list_of_different_dicts)
+	d = dt.Dictoo(list_of_different_dicts)
 	d_flat = d.flattened()
 	assert d_flat['[0].a'] == 1
-	assert d_flat['[1].a'] == 2
-	assert d_flat['[2].b'] == 4
+	assert d_flat['[1].a'] == 3
+	assert d_flat['[2].d'] == 6
 
-	d = dt.Dicty(list_of_different_dicts)
+	d = dt.Dictoo(dict_with_list_of_dicts)
 	d_flat = d.flattened()
+	assert d_flat['l[0].b'] == 2
+	assert d_flat['l[1].b'] == 3
+	assert d_flat['m'] == 5
 
 @pytest.mark.skipif('numpy' not in sys.modules, reason="Skipping numpy tests because numpy is not installed.")
 class TestNumpy:
 	@pytest.fixture
 	def dicts(self):
-		return dt.Dicty([{
+		return dt.Dictoo([{
 					'a': np.random.normal(0, 1, (3, 4)),
 					'b': np.random.normal(2, 1, (2,)),
 					'c': {
@@ -223,8 +227,8 @@ class TestNumpy:
 	
 	def test_apply(self):
 		arrays = [np.random.normal(0, 1, (3, 4)), np.random.normal(2, 1, (2,)), np.random.normal(4, 1, (3, 3))]
-		d = dt.Dicty({'a': arrays[0], 'b': arrays[1:]})
-		d_res = dt.Dicty({'a': np.sum(arrays[0], axis=0), 'b': [np.sum(arrays[1], axis=0), np.sum(arrays[2], axis=0)]})
+		d = dt.Dictoo({'a': arrays[0], 'b': arrays[1:]})
+		d_res = dt.Dictoo({'a': np.sum(arrays[0], axis=0), 'b': [np.sum(arrays[1], axis=0), np.sum(arrays[2], axis=0)]})
 		assert dt.apply(np.sum, d, axis=0) == d_res
 
 	@pytest.mark.skip('No skip reason')
@@ -241,7 +245,7 @@ class TestNumpy:
 class TestTorch:
 	@pytest.fixture
 	def dicts(self):
-		return dt.Dicty([{
+		return dt.Dictoo([{
 					'a': torch.normal(0, 1, (3, 4)),
 					'b': torch.normal(2, 1, (2,1)),
 					'c': {

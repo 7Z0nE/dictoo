@@ -8,17 +8,20 @@ install_requires = []
 tests_require = ['pytest']
 
 setup(name='dictoo',
-    version='1.3.1',
+    version='1.3.2',
     description='Utilities for working with json-style datastructures.',
     author='Frederik Wegner',
     author_email='onlyknoppas@gmail.com',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://github.com/7Z0nE/dicty',
+    url='https://github.com/7Z0nE/dictoo',
     packages=['dictoo'],
     python_requires=">=3.7",
 	install_requires=install_requires,
 	tests_require=tests_require,
+    extras_require={
+        'dev': tests_require,
+    },
     license_files=('LICENSE',),
 
 )
